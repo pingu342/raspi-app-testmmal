@@ -6,6 +6,7 @@
 #include "interface/mmal/util/mmal_util_params.h"
 #include "interface/mmal/util/mmal_connection.h"
 #include "interface/vcos/vcos.h"
+#include "debug.h"
 
 typedef struct {
 	int enable;       /// Turn colourFX on or off
@@ -24,43 +25,6 @@ typedef struct {
 	double w;
 	double h;
 } PARAM_FLOAT_RECT_T;
-
-const char *get_filename(const char *pFilePath)
-{
-	const char *p, *pFileName;
-
-	pFileName = p = pFilePath;
-	while ((p = strchr(pFileName, '/')) != NULL) {
-		pFileName = p + 1;
-	}
-
-	return pFileName;
-}
-
-enum {
-	LOG_DEBUG,
-	LOG_INFO,
-	LOG_WARNING,
-	LOG_ERROR
-};
-
-const char logLevel[] = {'D','I','W','E'};
-
-void my_log_print(int level, const char *pFilePath, int line, const char *pFuncName, const char *pFormat, ...)
-{
-	static char msg[1024];
-	va_list arg={0};
-	pthread_t th = pthread_self();
-	va_start(arg, pFormat);
-	vsnprintf(msg, sizeof(msg), pFormat, arg);
-	va_end(arg);
-	fprintf(stderr, "/%c %08x %s:%d %s: %s\n", logLevel[level], msg, get_filename(pFilePath), line, pFuncName, msg);
-}
-
-#define LOGE(...) my_log_print(LOG_ERROR, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
-#define LOGW(...) my_log_print(LOG_WARNING, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
-#define LOGI(...) my_log_print(LOG_INFO, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
-#define LOGD(...) my_log_print(LOG_DEBUG, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
 
 typedef struct {
 	int cameraNum;				/// Camera number.
@@ -114,14 +78,20 @@ static void camera_video_callback(MMAL_PORT_T *pPort, MMAL_BUFFER_HEADER_T *pBuf
 {
 	MMAL_STATUS_T status;
 	MMAL_BUFFER_HEADER_T *pNewBufh;
+	static int frameNo = 0;
+
+	if (pBufh->cmd != 0 || pBufh->length == 0) {
+		goto release;
+	}
 	
-	//LOGI("Cmd : 0x%08x", pBufh->cmd);
-	LOGI("Write %d bytes to file", pBufh->length);
+	LOG_BFH(LOG_DEBUG, pBufh, "Frame#%d Camera video output", frameNo);
 	mmal_buffer_header_mem_lock(pBufh);
 	fwrite(pBufh->data, 1, pBufh->length, pFile);
 	mmal_buffer_header_mem_unlock(pBufh);
-	mmal_buffer_header_release(pBufh);
+	frameNo++;
 
+release:
+	mmal_buffer_header_release(pBufh);
 	pNewBufh = mmal_queue_get(pPool->queue);
 	if (pNewBufh) {
 		status = mmal_port_send_buffer(pPort, pNewBufh);
@@ -154,7 +124,7 @@ void prepare_camera_component(CAMERA_STATE *pCameraState)
 		LOGE("Camera doesn't have output ports");
 		goto error;
 	} else {
-		LOGI("Camera has %d ports", pCameraComponent->output_num);
+		LOGD("Camera has %d ports", pCameraComponent->output_num);
 	}
 
 	status = mmal_port_parameter_set_uint32(pCameraComponent->control, MMAL_PARAMETER_CAMERA_CUSTOM_SENSOR_CONFIG, pCameraState->sensorMode);
@@ -226,7 +196,7 @@ void prepare_camera_component(CAMERA_STATE *pCameraState)
 		goto error;
 	}
 
-	LOGI("Camera's video output port : buffer_num_recommended=%d, buffer_size_recommended=%d",
+	LOGD("Camera's video output port : buffer_num_recommended=%d, buffer_size_recommended=%d",
 			pVideOutputPort->buffer_num_recommended, pVideOutputPort->buffer_size_recommended);
 
 	pVideOutputPort->buffer_size = pVideOutputPort->buffer_size_recommended;
@@ -355,6 +325,8 @@ int main(void)
 	pPreviewInputPort = pPreviewComponent->input[0];
 
 	connect_ports(pCameraPreviewOutputPort, pPreviewInputPort, &pConnectionPreview);
+
+	LOG_FMT(LOG_DEBUG, pCameraVideoOutputPort->format, "Camera video output port's format");
 	
 	status = mmal_port_enable(pCameraVideoOutputPort, camera_video_callback);
 	if (status != MMAL_SUCCESS) {
