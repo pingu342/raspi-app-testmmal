@@ -27,4 +27,11 @@ extern void bufh_log_print   (const char *pFilePath, int line, const char *pFunc
 #define LOG_FMT(...) format_log_print(__FILE__, __LINE__, __FUNCTION__, __VA_ARGS__);
 #define LOG_BFH(...) bufh_log_print(__FILE__, __LINE__, __FUNCTION__, __VA_ARGS__);
 
+extern const char *profile_name(MMAL_VIDEO_PROFILE_T profile);
+extern const char *level_name(MMAL_VIDEO_LEVEL_T level);
+extern const char *ratecontrol_name(MMAL_VIDEO_RATECONTROL_T control);
+extern const char *nalunitformat_names(MMAL_VIDEO_NALUNITFORMAT_T format);
+
+extern void videoparams_log_print(MMAL_PORT_T *pPort);
+
 #endif /*__DEBUG_H__*/

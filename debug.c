@@ -91,3 +91,262 @@ void bufh_log_print(const char *pFilePath, int line, const char *pFuncName, int 
 	fprintf(stderr, "/%c %08x %s:%d %s:  }\n", logLevel[level], th, get_filename(pFilePath), line, pFuncName);
 }
 
+const char *profile_name(MMAL_VIDEO_PROFILE_T profile)
+{
+	const char *profile_names[] = {
+		"H263_BASELINE",
+		"H263_H320CODING",
+		"H263_BACKWARDCOMPATIBLE",
+		"H263_ISWV2",
+		"H263_ISWV3",
+		"H263_HIGHCOMPRESSION",
+		"H263_INTERNET",
+		"H263_INTERLACE",
+		"H263_HIGHLATENCY",
+		"MP4V_SIMPLE",
+		"MP4V_SIMPLESCALABLE",
+		"MP4V_CORE",
+		"MP4V_MAIN",
+		"MP4V_NBIT",
+		"MP4V_SCALABLETEXTURE",
+		"MP4V_SIMPLEFACE",
+		"MP4V_SIMPLEFBA",
+		"MP4V_BASICANIMATED",
+		"MP4V_HYBRID",
+		"MP4V_ADVANCEDREALTIME",
+		"MP4V_CORESCALABLE",
+		"MP4V_ADVANCEDCODING",
+		"MP4V_ADVANCEDCORE",
+		"MP4V_ADVANCEDSCALABLE",
+		"MP4V_ADVANCEDSIMPLE",
+		"H264_BASELINE",
+		"H264_MAIN",
+		"H264_EXTENDED",
+		"H264_HIGH",
+		"H264_HIGH10",
+		"H264_HIGH422",
+		"H264_HIGH444",
+		"H264_CONSTRAINED_BASELINE"
+	};
+	if (0 <= profile && profile < (sizeof(profile_names) / sizeof(char*))) {
+		return profile_names[profile];
+	} else if (profile == MMAL_VIDEO_PROFILE_DUMMY) {
+		return "DUMMY";
+	}
+	return "?";
+}
+
+const char *level_name(MMAL_VIDEO_LEVEL_T level)
+{
+	const char *level_names[] = {
+		"H263_10",
+		"H263_20",
+		"H263_30",
+		"H263_40",
+		"H263_45",
+		"H263_50",
+		"H263_60",
+		"H263_70",
+		"MP4V_0",
+		"MP4V_0b",
+		"MP4V_1",
+		"MP4V_2",
+		"MP4V_3",
+		"MP4V_4",
+		"MP4V_4a",
+		"MP4V_5",
+		"MP4V_6",
+		"H264_1",
+		"H264_1b",
+		"H264_11",
+		"H264_12",
+		"H264_13",
+		"H264_2",
+		"H264_21",
+		"H264_22",
+		"H264_3",
+		"H264_31",
+		"H264_32",
+		"H264_4",
+		"H264_41",
+		"H264_42",
+		"H264_5",
+		"H264_51",
+		"DUMMY"
+	};
+	if (0 <= level && level < (sizeof(level_names) / sizeof(char*))) {
+		return level_names[level];
+	} else if (level == MMAL_VIDEO_LEVEL_DUMMY) {
+		return "DUMMY";
+	}
+	return "?";
+}
+
+const char *ratecontrol_name(MMAL_VIDEO_RATECONTROL_T control)
+{
+	const char *ratecontrol_names[] = {
+		"DEFAULT",
+		"VARIABLE",
+		"CONSTANT",
+		"VARIABLE_SKIP_FRAMES",
+		"CONSTANT_SKIP_FRAMES"
+	};
+	if (0 <= control && control < (sizeof(ratecontrol_names) / sizeof(char*))) {
+		return ratecontrol_names[control];
+	} else if (control == MMAL_VIDEO_RATECONTROL_DUMMY) {
+		return "DUMMY";
+	}
+	return "?";
+}
+
+const char *nalunitformat_names(MMAL_VIDEO_NALUNITFORMAT_T format)
+{
+	int i;
+	const struct {
+		MMAL_VIDEO_NALUNITFORMAT_T format;
+		const char *name;
+	} nalunitformat_names[] = {
+		{MMAL_VIDEO_NALUNITFORMAT_STARTCODES, "STARTCODES"},
+		{MMAL_VIDEO_NALUNITFORMAT_NALUNITPERBUFFER, "NALUNITPERBUFFER"},
+		{MMAL_VIDEO_NALUNITFORMAT_ONEBYTEINTERLEAVELENGTH, "ONEBYTEINTERLEAVELENGTH"},
+		{MMAL_VIDEO_NALUNITFORMAT_TWOBYTEINTERLEAVELENGTH, "TWOBYTEINTERLEAVELENGTH"},
+		{MMAL_VIDEO_NALUNITFORMAT_FOURBYTEINTERLEAVELENGTH, "FOURBYTEINTERLEAVELENGTH"},
+		{MMAL_VIDEO_NALUNITFORMAT_DUMMY, "DUMMY"},
+		{0, NULL}
+	};
+	for (i=0; ;i++) {
+		if (nalunitformat_names[i].name == NULL) {
+			break;
+		} else if (nalunitformat_names[i].format == format) {
+			return nalunitformat_names[i].name;
+		}
+	}
+	return "?";
+}
+
+void videoparams_log_print(MMAL_PORT_T *pPort)
+{
+	MMAL_STATUS_T status;
+
+	/* MMAL_PARAMETER_SUPPORTED_PROFILES */
+	{
+		int i, num;
+		struct {
+			MMAL_PARAMETER_HEADER_T hdr;
+			struct {
+				MMAL_VIDEO_PROFILE_T profile;
+				MMAL_VIDEO_LEVEL_T level;
+			} profile[8];
+		} param = {
+			{MMAL_PARAMETER_SUPPORTED_PROFILES, sizeof(param)},
+			{0}
+		};
+		LOGD("MMAL_PARAMETER_SUPPORTED_PROFILES :");
+		status = mmal_port_parameter_get(pPort, (MMAL_PARAMETER_HEADER_T*)&param);
+		if (status != MMAL_SUCCESS) {
+			LOGE(" Failed to get parameter");
+		} else {
+			num = (param.hdr.size - sizeof(param.hdr)) / sizeof(param.profile[0]);
+			for (i=0; i<num && i<8; i++) {
+				LOGD(" .profile[%d]", i);
+				LOGD("  .profile=%s", profile_name(param.profile[i].profile));
+				LOGD("  .level=%s", level_name(param.profile[i].level));
+				if (param.profile[i].profile==0 && param.profile[i].level==0) {
+					break;
+				}
+			}
+		}
+	}
+
+	/* MMAL_PARAMETER_PROFILE */
+	{
+		MMAL_PARAMETER_VIDEO_PROFILE_T param = {
+			{MMAL_PARAMETER_PROFILE, sizeof(param)},
+			{0}
+		};
+		LOGD("MMAL_PARAMETER_PROFILE :");
+		status = mmal_port_parameter_get(pPort, (MMAL_PARAMETER_HEADER_T*)&param);
+		if (status != MMAL_SUCCESS) {
+			LOGE(" Failed to get parameter");
+		} else {
+			LOGD(" .profile=%s", profile_name(param.profile[0].profile));
+			LOGD(" .level=%s", level_name(param.profile[0].level));
+		}
+	}
+
+	/* MMAL_PARAMETER_INTRAPERIOD */
+	{
+		MMAL_PARAMETER_UINT32_T param = {
+			{MMAL_PARAMETER_INTRAPERIOD, sizeof(param)},
+			0
+		};
+		LOGD("MMAL_PARAMETER_INTRAPERIOD :");
+		status = mmal_port_parameter_get(pPort, (MMAL_PARAMETER_HEADER_T*)&param);
+		if (status != MMAL_SUCCESS) {
+			LOGE(" Failed to get parameter");
+		} else {
+			LOGD(" .value=%u", param.value);
+		}
+	}
+
+	/* MMAL_PARAMETER_RATECONTROL */
+	{
+		MMAL_PARAMETER_VIDEO_RATECONTROL_T param = {
+			{MMAL_PARAMETER_RATECONTROL, sizeof(param)},
+			0
+		};
+		LOGD("MMAL_PARAMETER_RATECONTROL :");
+		status = mmal_port_parameter_get(pPort, (MMAL_PARAMETER_HEADER_T*)&param);
+		if (status != MMAL_SUCCESS) {
+			LOGE(" Failed to get parameter");
+		} else {
+			LOGD(" .control=%s", ratecontrol_name(param.control));
+		}
+	}
+
+	/* MMAL_PARAMETER_NALUNITFORMAT */
+	{
+		MMAL_PARAMETER_VIDEO_NALUNITFORMAT_T param = {
+			{MMAL_PARAMETER_NALUNITFORMAT, sizeof(param)},
+			0
+		};
+		LOGD("MMAL_PARAMETER_NALUNITFORMAT :");
+		status = mmal_port_parameter_get(pPort, (MMAL_PARAMETER_HEADER_T*)&param);
+		if (status != MMAL_SUCCESS) {
+			LOGE(" Failed to get parameter");
+		} else {
+			LOGD(" .format=%s", nalunitformat_names(param.format));
+		}
+	}
+
+	/* MMAL_PARAMETER_VIDEO_BIT_RATE */
+	{
+		MMAL_PARAMETER_UINT32_T param = {
+			{MMAL_PARAMETER_VIDEO_BIT_RATE, sizeof(param)},
+			0
+		};
+		LOGD("MMAL_PARAMETER_VIDEO_BIT_RATE :");
+		status = mmal_port_parameter_get(pPort, (MMAL_PARAMETER_HEADER_T*)&param);
+		if (status != MMAL_SUCCESS) {
+			LOGE(" Failed to get parameter");
+		} else {
+			LOGD(" .value=%u", param.value);
+		}
+	}
+
+	/* MMAL_PARAMETER_VIDEO_IMMUTABLE_INPUT */
+	{
+		MMAL_PARAMETER_BOOLEAN_T param = {
+			{MMAL_PARAMETER_VIDEO_IMMUTABLE_INPUT, sizeof(param)},
+			0
+		};
+		LOGD("MMAL_PARAMETER_VIDEO_IMMUTABLE_INPUT :");
+		status = mmal_port_parameter_get(pPort, (MMAL_PARAMETER_HEADER_T*)&param);
+		if (status != MMAL_SUCCESS) {
+			LOGE(" Failed to get parameter");
+		} else {
+			LOGD(" .enable=%u", param.enable);
+		}
+	}
+}
+

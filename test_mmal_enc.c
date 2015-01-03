@@ -25,10 +25,12 @@ static void output_callback(MMAL_PORT_T *pPort, MMAL_BUFFER_HEADER_T *pBufh)
 	MMAL_BUFFER_HEADER_T *pNewBufh;
 
 	if (pBufh->cmd != 0) {
+		LOGI("event : %d", pBufh->cmd);
 		goto release;
 	}
 	
-	LOGD("Write %d bytes encoded data to file", pBufh->length);
+	LOGD("Encoded data : %d bytes", pBufh->length);
+	//LOG_BFH(LOG_DEBUG, pBufh, "Encoded buffer");
 	mmal_buffer_header_mem_lock(pBufh);
 	fwrite(pBufh->data, 1, pBufh->length, pOutputFile);
 	mmal_buffer_header_mem_unlock(pBufh);
@@ -110,6 +112,16 @@ void prepare_video_encoder_component(void)
 		pVideoEncoderOutputPort->buffer_num = 3;
 	}
 
+	if (mmal_port_parameter_set_boolean(pVideoEncoderInputPort, MMAL_PARAMETER_VIDEO_IMMUTABLE_INPUT, 1) != MMAL_SUCCESS) {
+		LOGE("Unable to set immutable input flag");
+	}
+
+	status = mmal_component_enable(pVideoEncoderComponent);
+	if (status != MMAL_SUCCESS) {
+		LOGE("Unable to enable video encoder component");
+		goto error;
+	}
+
 	return;
 
 error:
@@ -126,6 +138,7 @@ int main(void)
 	MMAL_PORT_T *pOutputPort = NULL, *pInputPort = NULL;
 	MMAL_BUFFER_HEADER_T *pBufh;
 	int frameNo = 0;
+	double pts = 0.0;
 
 	pInputFile = fopen("test.yuv", "rb");
 	if (pInputFile == NULL) {
@@ -147,6 +160,7 @@ int main(void)
 
 	LOG_FMT(LOG_DEBUG, pInputPort->format, "Video encoder component input port's format");
 	LOG_FMT(LOG_DEBUG, pOutputPort->format, "Video encoder component output port's format");
+	videoparams_log_print(pOutputPort);
 
 	status = mmal_port_enable(pInputPort, input_callback);
 	if (status != MMAL_SUCCESS) {
@@ -188,13 +202,15 @@ int main(void)
 			if (pBufh->length <= 0) {
 				break;
 			}
-			pBufh->flags |= MMAL_BUFFER_HEADER_FLAG_FRAME;
+			pBufh->flags = MMAL_BUFFER_HEADER_FLAG_FRAME;
+			pBufh->pts = pBufh->dts = (int64_t)pts;
 			LOGI("Frame#%d : %d bytes", frameNo, pBufh->length);
 			status = mmal_port_send_buffer(pInputPort, pBufh);
 			if (status != MMAL_SUCCESS) {
 				LOG_BFH(LOG_ERROR, pBufh, "Unable to send a buffer to encoder input port : error %d", status);
 			}
 			frameNo++;
+			pts += 1000000.0/15.0;
 		} else {
 			LOGW("No buffer header");
 		}

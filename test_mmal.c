@@ -84,7 +84,8 @@ static void camera_video_callback(MMAL_PORT_T *pPort, MMAL_BUFFER_HEADER_T *pBuf
 		goto release;
 	}
 	
-	LOG_BFH(LOG_DEBUG, pBufh, "Frame#%d Camera video output", frameNo);
+	//LOG_BFH(LOG_DEBUG, pBufh, "Frame#%d Camera video output", frameNo);
+	LOGD("Frame#%d Camera video output", frameNo);
 	mmal_buffer_header_mem_lock(pBufh);
 	fwrite(pBufh->data, 1, pBufh->length, pFile);
 	mmal_buffer_header_mem_unlock(pBufh);
