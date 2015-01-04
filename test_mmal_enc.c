@@ -197,7 +197,7 @@ int main(void)
 	}
 
 	while (1) {
-		if ((pBufh = mmal_queue_get(pInputPool->queue)) != NULL) {
+		if ((pBufh = mmal_queue_wait(pInputPool->queue)) != NULL) {
 			pBufh->length = fread(pBufh->data, 1, pInputPort->buffer_size, pInputFile);
 			if (pBufh->length <= 0) {
 				break;
@@ -214,8 +214,6 @@ int main(void)
 		} else {
 			LOGW("No buffer header");
 		}
-
-		usleep(10000);
 	}
 
 error:
