@@ -1,6 +1,6 @@
 # 概要
 
-Raspberry piでMMAL APIを使うアプリケーションのサンプル。
+Raspberry piで[MMAL(Multi-Media Abstraction Layer) API](http://www.jvcref.com/files/PI/documentation/html/)を使うアプリケーションのサンプル。
 
 * test_mmal
 	* MMAL APIを使ってカメラからビデオをキャプチャしてファイルに出力する。
